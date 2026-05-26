@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="is">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>HMveitur</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero-band">
+        <nav class="top-nav" aria-label="Aðalvalmynd">
+          <a class="brand" href="#top" aria-label="HMveitur forsíða">
+            <span class="brand-mark" aria-hidden="true">HM</span>
+            <span>HMveitur</span>
+          </a>
+          <div id="sessionControls" class="session-controls"></div>
+        </nav>
+
+        <section id="top" class="hero-layout" aria-labelledby="pageTitle">
+          <div class="hero-copy">
+            <p class="eyebrow">HM 2026 spáleikur</p>
+            <h1 id="pageTitle">Giskaðu á úrslitin, safnaðu stigum, haltu toppsætinu.</h1>
+            <p class="hero-text">
+              Boðskóði opnar þinn spáreikning. Efstu þrír sjást strax, og allar spár birtast undir hverjum leik.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#matches">Sjá leiki</a>
+              <a class="button ghost" href="#leaderboard">Stigatafla</a>
+            </div>
+          </div>
+
+          <div class="pitch-visual" aria-hidden="true">
+            <div class="pitch-line pitch-center"></div>
+            <div class="pitch-line pitch-box left"></div>
+            <div class="pitch-line pitch-box right"></div>
+            <div class="ball-path">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </section>
+      </header>
+
+      <main>
+        <section id="loginPanel" class="login-band"></section>
+
+        <section id="leaderboard" class="section-wrap">
+          <div class="section-heading">
+            <p class="eyebrow">Staðan</p>
+            <h2>Efstu menn</h2>
+          </div>
+          <div id="podium" class="podium-grid"></div>
+          <div id="leaderboardTable" class="table-shell"></div>
+        </section>
+
+        <section id="matches" class="section-wrap">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Leikir</p>
+              <h2>Spár og úrslit</h2>
+            </div>
+            <div class="toolbar" role="toolbar" aria-label="Síur fyrir leiki">
+              <button class="tool-button is-active" data-filter="all" type="button">Allir</button>
+              <button class="tool-button" data-filter="upcoming" type="button">Næstu</button>
+              <button class="tool-button" data-filter="finished" type="button">Búnir</button>
+              <button class="tool-button" data-filter="mine" type="button">Mínar spár</button>
+            </div>
+          </div>
+          <div class="search-row">
+            <label class="sr-only" for="matchSearch">Leita að liði eða leikvangi</label>
+            <input id="matchSearch" class="search-input" type="search" placeholder="Leita að liði, riðli eða leikvangi">
+          </div>
+          <div id="matchesList" class="matches-list"></div>
+        </section>
+
+        <section id="setupInfo" class="section-wrap setup-info"></section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="fixtures.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
