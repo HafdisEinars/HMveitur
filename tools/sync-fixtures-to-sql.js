@@ -1,20 +1,31 @@
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-const fixturesSource = fs.readFileSync("fixtures.js", "utf8");
+const source = fs.readFileSync("fixtures.js", "utf8");
 const context = { window: {} };
-vm.runInNewContext(fixturesSource, context);
+vm.runInNewContext(source, context);
 
-const fixtures = JSON.stringify(context.window.HMVEITUR_SEED.matches, null, 2);
+const rows = context.window.HMVEITUR_SEED.matches
+  .map((match) => [
+    match.id,
+    match.startsAt,
+    match.stage,
+    match.groupName || "",
+    match.homeTeam,
+    match.awayTeam,
+    match.venue
+  ].join("|"))
+  .join("\n");
+
 const sqlPath = "supabase-schema.sql";
 const sql = fs.readFileSync(sqlPath, "utf8");
 const nextSql = sql.replace(
-  /from jsonb_array_elements\(\$fixtures\$[\s\S]*?\$fixtures\$::jsonb\) as item;/,
-  `from jsonb_array_elements($fixtures$\n${fixtures}\n$fixtures$::jsonb) as item;`
+  /from regexp_split_to_table\(\$fixtures\$[\s\S]*?\$fixtures\$, E'\\n'\) as line/,
+  `from regexp_split_to_table($fixtures$\n${rows}\n$fixtures$, E'\\n') as line`
 );
 
 if (nextSql === sql) {
   throw new Error("Could not find fixtures block in supabase-schema.sql");
 }
 
-fs.writeFileSync(sqlPath, nextSql);
+fs.writeFileSync(sqlPath, nextSql, "utf8");
