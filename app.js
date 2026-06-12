@@ -1,8 +1,13 @@
 (() => {
   const config = window.HMVEITUR_CONFIG || {};
   const seed = window.HMVEITUR_SEED || { players: [], matches: [], predictions: [] };
-  const remoteMode = Boolean(config.supabaseUrl && config.supabaseAnonKey);
+  const supabaseKey = config.supabaseAnonKey || config.supabasePublishableKey;
+  let remoteMode = Boolean(config.supabaseUrl && supabaseKey);
   const scoring = { exact: 5, outcome: 3, goal: 1, ...(config.scoring || {}) };
+  const predictionLockHours = Number(config.predictionLockHours ?? 2);
+  const predictionLockMs = Number.isFinite(predictionLockHours) && predictionLockHours > 0
+    ? predictionLockHours * 60 * 60 * 1000
+    : 0;
   const keys = { data: "hmveitur-local-data-v1", session: "hmveitur-session-v1" };
   const state = { players: [], matches: [], predictions: [], player: null, filter: "all", query: "" };
   const el = (selector) => document.querySelector(selector);
@@ -26,7 +31,15 @@
   async function init() {
     state.player = readJson(keys.session, null);
     bindControls();
-    await loadData();
+    try {
+      await loadData();
+    } catch (error) {
+      if (!remoteMode) throw error;
+      console.warn(error);
+      remoteMode = false;
+      await loadData();
+      toast("Supabase tenging náðist ekki. Síðan er í demo-ham þar til tengingin kemur aftur.");
+    }
     render();
   }
 
@@ -110,7 +123,7 @@
   async function savePrediction(matchId, home, away) {
     if (!state.player) return toast("Þú þarft boðskóða áður en þú vistar spá.");
     const match = state.matches.find((item) => item.id === matchId);
-    if (!match || locked(match)) return toast("Þessi leikur er læstur.");
+    if (!match || locked(match)) return toast(`Þessi leikur er læstur. Spár lokast ${predictionLockLabel()}.`);
     const homeGoals = scoreValue(home);
     const awayGoals = scoreValue(away);
     if (homeGoals === null || awayGoals === null) return toast("Settu inn markatölu fyrir bæði lið.");
@@ -169,7 +182,7 @@
     renderLogin();
     renderLeaderboard();
     renderMatches();
-    dom.setup.innerHTML = `<p>Gagnahamur: <strong>${remoteMode ? "Supabase" : "Demo í vafra"}</strong>. ${remoteMode ? "Allar spár vistast miðlægt." : "Sameiginlegar spár þurfa Supabase tengingu."}</p><p>Stig: ${scoring.exact} fyrir nákvæm úrslit, ${scoring.outcome} fyrir rétt merki, ${scoring.goal} fyrir rétta markatölu annars liðs.</p>`;
+    dom.setup.innerHTML = `<p>Gagnahamur: <strong>${remoteMode ? "Supabase" : "Demo í vafra"}</strong>. ${remoteMode ? "Allar spár vistast miðlægt." : "Sameiginlegar spár þurfa Supabase tengingu."}</p><p>Stig: ${scoring.exact} fyrir nákvæm úrslit, ${scoring.outcome} fyrir rétt merki, ${scoring.goal} fyrir rétta markatölu annars liðs. Spár lokast ${predictionLockLabel()}.</p>`;
   }
 
   function renderSession() {
@@ -223,11 +236,12 @@
     const mine = state.player ? prediction(state.player.id, match.id) : null;
     const finished = hasResult(match);
     const isLocked = locked(match);
+    const chipText = finished ? "Læstur · Úrslit komin" : isLocked ? `Læstur · ${predictionLockLabel()}` : "Opinn";
     const playerRows = state.players.map((player) => {
       const pick = prediction(player.id, match.id);
       return `<tr><td>${safe(player.name)}</td><td>${pick ? `${pick.homeGoals} - ${pick.awayGoals}` : "Engin spá"}</td><td>${finished && pick ? pointsFor(pick, match) : "-"}</td></tr>`;
     }).join("");
-    return `<article class="match-card" data-match-id="${safe(match.id)}"><div class="match-topline"><span class="stage-pill">${safe(match.stage)}${match.groupName ? ` · Riðill ${safe(match.groupName)}` : ""}</span><span>${dateLabel(match.startsAt)} · ${safe(match.venue)}</span></div><div class="match-main"><div class="teams"><div class="team-line"><span class="team-name">${safe(match.homeTeam)}</span><span class="result-score">${finished ? match.homeScore : ""}</span></div><div class="team-line"><span class="team-name">${safe(match.awayTeam)}</span><span class="result-score">${finished ? match.awayScore : ""}</span></div></div><span class="prediction-chip">${isLocked ? "Læstur" : "Opinn"}${finished ? " · Úrslit komin" : ""}</span></div><div class="match-actions"><div class="prediction-grid"><span class="muted">Þín spá</span><input class="score-input" name="homeGoals" type="number" min="0" max="20" value="${mine?.homeGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk heimaliðs"><input class="score-input" name="awayGoals" type="number" min="0" max="20" value="${mine?.awayGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk útiliðs"><button class="small-button primary" type="button" data-save-prediction ${!state.player || isLocked ? "disabled" : ""}>Vista spá</button></div>${state.player?.isAdmin ? `<div class="result-row"><span class="muted">Úrslit</span><input class="score-input" name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input class="score-input" name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="small-button danger" type="button" data-save-result>Vista úrslit</button></div>` : ""}</div><div class="predictions-table"><table><thead><tr><th>Leikmaður</th><th>Spá</th><th>Stig</th></tr></thead><tbody>${playerRows}</tbody></table></div></article>`;
+    return `<article class="match-card" data-match-id="${safe(match.id)}"><div class="match-topline"><span class="stage-pill">${safe(match.stage)}${match.groupName ? ` · Riðill ${safe(match.groupName)}` : ""}</span><span>${dateLabel(match.startsAt)} · ${safe(match.venue)}</span></div><div class="match-main"><div class="teams"><div class="team-line"><span class="team-name">${safe(match.homeTeam)}</span><span class="result-score">${finished ? match.homeScore : ""}</span></div><div class="team-line"><span class="team-name">${safe(match.awayTeam)}</span><span class="result-score">${finished ? match.awayScore : ""}</span></div></div><span class="prediction-chip">${chipText}</span></div><div class="match-actions"><div class="prediction-grid"><span class="muted">Þín spá</span><input class="score-input" name="homeGoals" type="number" min="0" max="20" value="${mine?.homeGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk heimaliðs"><input class="score-input" name="awayGoals" type="number" min="0" max="20" value="${mine?.awayGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk útiliðs"><button class="small-button primary" type="button" data-save-prediction ${!state.player || isLocked ? "disabled" : ""}>Vista spá</button></div>${state.player?.isAdmin ? `<div class="result-row"><span class="muted">Úrslit</span><input class="score-input" name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input class="score-input" name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="small-button danger" type="button" data-save-result>Vista úrslit</button></div>` : ""}</div><div class="predictions-table"><table><thead><tr><th>Leikmaður</th><th>Spá</th><th>Stig</th></tr></thead><tbody>${playerRows}</tbody></table></div></article>`;
   }
 
   function leaderboard() {
@@ -250,19 +264,28 @@
     if (ph === ah && pa === aa) return scoring.exact;
     return (outcome(ph, pa) === outcome(ah, aa) ? scoring.outcome : 0) + (ph === ah ? scoring.goal : 0) + (pa === aa ? scoring.goal : 0);
   }
+
   function outcome(home, away) { return home > away ? "home" : home < away ? "away" : "draw"; }
   function prediction(playerId, matchId) { return state.predictions.find((item) => item.playerId === playerId && item.matchId === matchId); }
   function hasResult(match) { return match.homeScore !== null && match.homeScore !== undefined && match.awayScore !== null && match.awayScore !== undefined; }
-  function locked(match) { return hasResult(match) || new Date(match.startsAt).getTime() <= Date.now(); }
+  function locked(match) {
+    const startAt = new Date(match.startsAt).getTime();
+    return hasResult(match) || (Number.isFinite(startAt) && startAt - predictionLockMs <= Date.now());
+  }
+  function predictionLockLabel() {
+    const hours = predictionLockMs / (60 * 60 * 1000);
+    const value = Number.isInteger(hours) ? String(hours) : hours.toLocaleString("is-IS", { maximumFractionDigits: 1 });
+    return `${value} klst fyrir leik`;
+  }
   function scoreValue(value) { const n = Number(value); return value === "" || !Number.isInteger(n) || n < 0 || n > 20 ? null : n; }
   function dateLabel(value) { return new Intl.DateTimeFormat("is-IS", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Atlantic/Reykjavik" }).format(new Date(value)); }
   function readJson(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-  function safe(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
+  function safe(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;").replaceAll("'", "&#039;"); }
   function toast(message) { dom.toast.textContent = message; dom.toast.classList.add("is-visible"); clearTimeout(toast.timer); toast.timer = setTimeout(() => dom.toast.classList.remove("is-visible"), 2800); }
   async function rpc(name, payload) {
     const response = await fetch(`${config.supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/${name}`, {
       method: "POST",
-      headers: { apikey: config.supabaseAnonKey, Authorization: `Bearer ${config.supabaseAnonKey}`, "Content-Type": "application/json" },
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
     const text = await response.text();
