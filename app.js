@@ -8,6 +8,56 @@
   const predictionLockMs = Number.isFinite(predictionLockHours) && predictionLockHours > 0
     ? predictionLockHours * 60 * 60 * 1000
     : 0;
+  const teamNames = {
+    "Algeria": "Alsír",
+    "Argentina": "Argentína",
+    "Australia": "Ástralía",
+    "Austria": "Austurríki",
+    "Belgium": "Belgía",
+    "Bosnia and Herzegovina": "Bosnía og Hersegóvína",
+    "Brazil": "Brasilía",
+    "Cabo Verde": "Grænhöfðaeyjar",
+    "Canada": "Kanada",
+    "Colombia": "Kólumbía",
+    "Congo DR": "Kongó DR",
+    "Côte d'Ivoire": "Fílabeinsströndin",
+    "Croatia": "Króatía",
+    "Curaçao": "Kúrasá",
+    "Czechia": "Tékkland",
+    "Ecuador": "Ekvador",
+    "Egypt": "Egyptaland",
+    "England": "England",
+    "France": "Frakkland",
+    "Germany": "Þýskaland",
+    "Ghana": "Gana",
+    "Haiti": "Haítí",
+    "IR Iran": "Íran",
+    "Iraq": "Írak",
+    "Japan": "Japan",
+    "Jordan": "Jórdanía",
+    "Korea Republic": "Suður-Kórea",
+    "Mexico": "Mexíkó",
+    "Morocco": "Marokkó",
+    "Netherlands": "Holland",
+    "New Zealand": "Nýja-Sjáland",
+    "Norway": "Noregur",
+    "Panama": "Panama",
+    "Paraguay": "Paragvæ",
+    "Portugal": "Portúgal",
+    "Qatar": "Katar",
+    "Saudi Arabia": "Sádi-Arabía",
+    "Scotland": "Skotland",
+    "Senegal": "Senegal",
+    "South Africa": "Suður-Afríka",
+    "Spain": "Spánn",
+    "Sweden": "Svíþjóð",
+    "Switzerland": "Sviss",
+    "Tunisia": "Túnis",
+    "Türkiye": "Tyrkland",
+    "Uruguay": "Úrúgvæ",
+    "USA": "Bandaríkin",
+    "Uzbekistan": "Úsbekistan"
+  };
   const keys = { data: "hmveitur-local-data-v1", session: "hmveitur-session-v1" };
   const state = { players: [], matches: [], predictions: [], player: null, filter: "all", query: "" };
   const el = (selector) => document.querySelector(selector);
@@ -214,7 +264,7 @@
   function renderMatches() {
     const now = Date.now();
     const matches = [...state.matches].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)).filter((match) => {
-      const text = `${match.homeTeam} ${match.awayTeam} ${match.groupName} ${match.stage} ${match.venue}`.toLowerCase();
+      const text = `${match.homeTeam} ${match.awayTeam} ${teamLabel(match.homeTeam)} ${teamLabel(match.awayTeam)} ${match.groupName} ${match.stage} ${match.venue}`.toLowerCase();
       if (state.query && !text.includes(state.query)) return false;
       if (state.filter === "upcoming") return !hasResult(match) && new Date(match.startsAt).getTime() >= now;
       if (state.filter === "finished") return hasResult(match);
@@ -241,7 +291,7 @@
       const pick = prediction(player.id, match.id);
       return `<tr><td>${safe(player.name)}</td><td>${pick ? `${pick.homeGoals} - ${pick.awayGoals}` : "Engin spá"}</td><td>${finished && pick ? pointsFor(pick, match) : "-"}</td></tr>`;
     }).join("");
-    return `<article class="match-card" data-match-id="${safe(match.id)}"><div class="match-topline"><span class="stage-pill">${safe(match.stage)}${match.groupName ? ` · Riðill ${safe(match.groupName)}` : ""}</span><span>${dateLabel(match.startsAt)} · ${safe(match.venue)}</span></div><div class="match-main"><div class="teams"><div class="team-line"><span class="team-name">${safe(match.homeTeam)}</span><span class="result-score">${finished ? match.homeScore : ""}</span></div><div class="team-line"><span class="team-name">${safe(match.awayTeam)}</span><span class="result-score">${finished ? match.awayScore : ""}</span></div></div><span class="prediction-chip">${chipText}</span></div><div class="match-actions"><div class="prediction-grid"><span class="muted">Þín spá</span><input class="score-input" name="homeGoals" type="number" min="0" max="20" value="${mine?.homeGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk heimaliðs"><input class="score-input" name="awayGoals" type="number" min="0" max="20" value="${mine?.awayGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk útiliðs"><button class="small-button primary" type="button" data-save-prediction ${!state.player || isLocked ? "disabled" : ""}>Vista spá</button></div>${state.player?.isAdmin ? `<div class="result-row"><span class="muted">Úrslit</span><input class="score-input" name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input class="score-input" name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="small-button danger" type="button" data-save-result>Vista úrslit</button></div>` : ""}</div><div class="predictions-table"><table><thead><tr><th>Leikmaður</th><th>Spá</th><th>Stig</th></tr></thead><tbody>${playerRows}</tbody></table></div></article>`;
+    return `<article class="match-card" data-match-id="${safe(match.id)}"><div class="match-topline"><span class="stage-pill">${safe(match.stage)}${match.groupName ? ` · Riðill ${safe(match.groupName)}` : ""}</span><span>${dateLabel(match.startsAt)} · ${safe(match.venue)}</span></div><div class="match-main"><div class="teams"><div class="team-line"><span class="team-name">${safe(teamLabel(match.homeTeam))}</span><span class="result-score">${finished ? match.homeScore : ""}</span></div><div class="team-line"><span class="team-name">${safe(teamLabel(match.awayTeam))}</span><span class="result-score">${finished ? match.awayScore : ""}</span></div></div><span class="prediction-chip">${chipText}</span></div><div class="match-actions"><div class="prediction-grid"><span class="muted">Þín spá</span><input class="score-input" name="homeGoals" type="number" min="0" max="20" value="${mine?.homeGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk heimaliðs"><input class="score-input" name="awayGoals" type="number" min="0" max="20" value="${mine?.awayGoals ?? ""}" ${!state.player || isLocked ? "disabled" : ""} aria-label="Mörk útiliðs"><button class="small-button primary" type="button" data-save-prediction ${!state.player || isLocked ? "disabled" : ""}>Vista spá</button></div>${state.player?.isAdmin ? `<div class="result-row"><span class="muted">Úrslit</span><input class="score-input" name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input class="score-input" name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="small-button danger" type="button" data-save-result>Vista úrslit</button></div>` : ""}</div><div class="predictions-table"><table><thead><tr><th>Leikmaður</th><th>Spá</th><th>Stig</th></tr></thead><tbody>${playerRows}</tbody></table></div></article>`;
   }
 
   function leaderboard() {
@@ -263,6 +313,28 @@
     const ph = Number(pick.homeGoals), pa = Number(pick.awayGoals), ah = Number(match.homeScore), aa = Number(match.awayScore);
     if (ph === ah && pa === aa) return scoring.exact;
     return (outcome(ph, pa) === outcome(ah, aa) ? scoring.outcome : 0) + (ph === ah ? scoring.goal : 0) + (pa === aa ? scoring.goal : 0);
+  }
+
+  function teamLabel(value) {
+    const name = String(value ?? "");
+    if (teamNames[name]) return teamNames[name];
+
+    const winnerGroup = name.match(/^Winner Group ([A-L])$/);
+    if (winnerGroup) return `Sigurvegari riðils ${winnerGroup[1]}`;
+
+    const runnerUpGroup = name.match(/^Runner-up Group ([A-L])$/);
+    if (runnerUpGroup) return `2. sæti riðils ${runnerUpGroup[1]}`;
+
+    const thirdPlace = name.match(/^Third place ([A-L/]+)$/);
+    if (thirdPlace) return `3. sæti úr riðlum ${thirdPlace[1]}`;
+
+    const winnerMatch = name.match(/^Winner Match (\d+)$/);
+    if (winnerMatch) return `Sigurvegari leiks ${winnerMatch[1]}`;
+
+    const runnerUpMatch = name.match(/^Runner-up Match (\d+)$/);
+    if (runnerUpMatch) return `Taplið leiks ${runnerUpMatch[1]}`;
+
+    return name;
   }
 
   function outcome(home, away) { return home > away ? "home" : home < away ? "away" : "draw"; }
