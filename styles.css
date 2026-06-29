@@ -439,6 +439,19 @@ h3 {
   background: #ffffff;
 }
 
+.leaderboard-controls {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fbf6;
+}
+
+.leaderboard-controls p {
+  margin: 0;
+  line-height: 1.45;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
